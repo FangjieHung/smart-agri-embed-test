@@ -14,7 +14,7 @@
 </head>
 <body>
   <h1>smart-agri 官網嵌入測試頁</h1>
-  <p>這是 M5a（#205）的驗收用頁面，模擬客戶官網。網址要帶兩個參數：</p>
+  <p>這是 M5a（#205）的驗收用頁面，模擬客戶官網。不帶參數時讀取 <code>config.json</code>；也可以在網址帶兩個參數：</p>
   <ul>
     <li><code>api</code>：API 對外的網址，只接受 <code>https://*.trycloudflare.com</code>（本機 API 的暫時通道）。</li>
     <li><code>assistant</code>：助理 id（GUID）。</li>
@@ -22,18 +22,32 @@
   <p>參數正確時，頁面會插入與客戶貼上時相同的載入器：<code>&lt;script src="{api}/embed.js" data-assistant="{id}" async&gt;</code>，右下角出現對話按鈕。</p>
   <p id="status" class="status" role="status">尚未載入。</p>
   <script>
-    (function () {
+    (async function () {
       var status = document.getElementById('status');
       var params = new URLSearchParams(location.search);
-      var api = params.get('api') || '';
-      var assistant = params.get('assistant') || '';
+      var api = params.get('api');
+      var assistant = params.get('assistant');
+      if (api === null && assistant === null) {
+        // 沒帶參數時讀同一個 repo 的 config.json（驗收時由我們更新成當下的通道網址與助理 id）。
+        try {
+          var config = await (await fetch('config.json', { cache: 'no-store' })).json();
+          api = config.api;
+          assistant = config.assistant;
+        } catch (e) {
+          status.textContent = '讀不到 config.json：' + e;
+          status.className = 'status error';
+          return;
+        }
+      }
+      api = api || '';
+      assistant = assistant || '';
       var apiUrl;
       try { apiUrl = new URL(api); } catch (e) { apiUrl = null; }
       var apiOk = apiUrl !== null && apiUrl.protocol === 'https:' && /^[a-z0-9-]+\.trycloudflare\.com$/.test(apiUrl.hostname)
         && apiUrl.port === '' && (apiUrl.pathname === '/' || apiUrl.pathname === '') && apiUrl.search === '' && apiUrl.hash === '';
       var idOk = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assistant);
       if (!apiOk || !idOk) {
-        status.textContent = '參數不正確：api 必須是 https://xxx.trycloudflare.com，assistant 必須是 GUID。';
+        status.textContent = '參數不正確：api 必須是 https://xxx.trycloudflare.com，assistant 必須是 GUID。收到的 api：「' + api + '」，assistant：「' + assistant + '」。';
         status.className = 'status error';
         return;
       }
