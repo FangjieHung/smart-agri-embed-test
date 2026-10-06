@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>smart-agri 官網嵌入測試頁</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #1f2933; }
+    code { background: #f1f5f4; padding: 0 .25rem; border-radius: 4px; }
+    .status { padding: .75rem 1rem; border-radius: 8px; background: #f1f5f4; }
+    .status.error { background: #fdecea; }
+  </style>
+</head>
+<body>
+  <h1>smart-agri 官網嵌入測試頁</h1>
+  <p>這是 M5a（#205）的驗收用頁面，模擬客戶官網。網址要帶兩個參數：</p>
+  <ul>
+    <li><code>api</code>：API 對外的網址，只接受 <code>https://*.trycloudflare.com</code>（本機 API 的暫時通道）。</li>
+    <li><code>assistant</code>：助理 id（GUID）。</li>
+  </ul>
+  <p>參數正確時，頁面會插入與客戶貼上時相同的載入器：<code>&lt;script src="{api}/embed.js" data-assistant="{id}" async&gt;</code>，右下角出現對話按鈕。</p>
+  <p id="status" class="status" role="status">尚未載入。</p>
+  <script>
+    (function () {
+      var status = document.getElementById('status');
+      var params = new URLSearchParams(location.search);
+      var api = params.get('api') || '';
+      var assistant = params.get('assistant') || '';
+      var apiUrl;
+      try { apiUrl = new URL(api); } catch (e) { apiUrl = null; }
+      var apiOk = apiUrl !== null && apiUrl.protocol === 'https:' && /^[a-z0-9-]+\.trycloudflare\.com$/.test(apiUrl.hostname)
+        && apiUrl.port === '' && (apiUrl.pathname === '/' || apiUrl.pathname === '') && apiUrl.search === '' && apiUrl.hash === '';
+      var idOk = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assistant);
+      if (!apiOk || !idOk) {
+        status.textContent = '參數不正確：api 必須是 https://xxx.trycloudflare.com，assistant 必須是 GUID。';
+        status.className = 'status error';
+        return;
+      }
+      var script = document.createElement('script');
+      script.src = apiUrl.origin + '/embed.js';
+      script.async = true;
+      script.setAttribute('data-assistant', assistant.toLowerCase());
+      script.onload = function () { status.textContent = '載入器已載入：' + script.src; };
+      script.onerror = function () { status.textContent = '載入器載入失敗：' + script.src; status.className = 'status error'; };
+      document.body.appendChild(script);
+    })();
+  </script>
+</body>
+</html>
